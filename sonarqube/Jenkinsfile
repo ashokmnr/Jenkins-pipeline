@@ -1,0 +1,35 @@
+/* import shared library */
+@Library('jenkins-shared-library')_
+
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout([$class: 'GitSCM', branches: [[name: '*/master']],
+                    userRemoteConfigs: [[url: 'https://github.com/SonarSource/sonar-scanning-examples.git']]])
+            }
+        }
+        stage("Sonar Scan") {
+            steps {
+                script {
+                    def scannerHome = tool 'sonarqube-scanner'
+                    withSonarQubeEnv ('sonarqube') {
+                        sh """
+                            ${scannerHome}/bin/sonar-scanner -X -Dsonar.projectKey='apple' -Dsonar.projectName='apple' -Dsonar.projectVersion='1.0.1'
+                        """
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            echo 'Sending Slack Notification'
+            slackNotifierv1(currentBuild.currentResult)
+            echo 'Deleting workspace'
+            deleteDir()
+        }
+    }
+}
